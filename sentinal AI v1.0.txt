@@ -1,0 +1,440 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  Activity, ShieldAlert, PhoneCall, BrainCircuit, GitBranch, 
+  FileText, Scale, CheckCircle2, Users, Zap, Bot, 
+  Database, FileCheck, Rocket, Plus, Minus, Maximize,
+  MousePointer2, Hand, LayoutDashboard, ArrowRight, XCircle, Server, Wrench
+} from 'lucide-react';
+
+// --- INITIAL DATA DEFINITIONS ---
+
+const RT_NODES = [
+  { id: '1', x: 50, y: 120, type: 'glass', label: 'Start', subLabel: 'Transaction', icon: Zap, glow: '#60a5fa' },
+  { id: '2', x: 280, y: 90, type: 'decision', label: 'Decision Engine', icon: Activity, glow: '#f59e0b' },
+  { id: '3', x: 500, y: 20, type: 'glass', label: 'Action', subLabel: 'Reject', icon: ShieldAlert, status: 'critical', glow: '#f87171' },
+  { id: '4', x: 500, y: 180, type: 'glass', label: 'Action', subLabel: 'Accept', icon: CheckCircle2, status: 'active', glow: '#4ade80' },
+  { id: '5', x: 500, y: 300, type: 'glass', label: 'Report', subLabel: 'Customer Report Fraud', icon: Users, glow: '#f472b6' },
+  { id: '6', x: 500, y: 420, type: 'glass', label: 'Data', subLabel: 'Call Transcript', icon: FileText, glow: '#60a5fa' },
+  { id: '8', x: 800, y: 420, type: 'glass', label: 'Analysis', subLabel: 'Modus Operandi', icon: BrainCircuit, glow: '#a78bfa' },
+  { id: 'prod-deploy', x: 1450, y: 120, type: 'glass', label: 'System', subLabel: 'Prod Deploy', icon: Rocket, status: 'active', glow: '#4ade80' },
+];
+
+const GENAI_NODES = [
+  { id: '11', x: 50, y: 100, type: 'glass', label: 'GenAI Analysis', subLabel: 'Extract Fraud M.O.', icon: BrainCircuit, color: 'text-[#a78bfa] bg-[#a78bfa]/10', glow: '#a78bfa' },
+  { id: '12', x: 350, y: 100, type: 'glass', label: 'Optimization', subLabel: 'Rec. New Features', icon: Database, glow: '#60a5fa' },
+  { id: '13', x: 350, y: 220, type: 'glass', label: 'Gate', subLabel: 'Developer Approval', icon: Users, glow: '#60a5fa' },
+  { id: '14', x: 50, y: 220, type: 'glass', label: 'MLOps', subLabel: 'Model Retraining', icon: Activity, color: 'text-[#60A5FA] bg-[#60A5FA]/10', glow: '#60A5FA' },
+  { id: '15', x: 50, y: 340, type: 'decision', label: 'KPI Check', icon: Activity, glow: '#f59e0b' },
+  { id: '16', x: 350, y: 355, type: 'glass', label: 'Result', subLabel: 'Improvement Found', icon: Rocket, status: 'active', glow: '#4ade80' },
+];
+
+const SOL2_NODES = [
+  { id: '17', x: 350, y: 50, type: 'glass', label: 'Orchestrator', subLabel: 'Governance Agent', icon: Bot, color: 'text-[#22d3ee] bg-[#22d3ee]/10', status: 'active', glow: '#22d3ee' },
+  { id: '18', x: 150, y: 200, type: 'glass', label: 'Agent 1', subLabel: 'TOR Generator', icon: FileCheck, glow: '#22d3ee' },
+  { id: '19', x: 550, y: 200, type: 'glass', label: 'Agent 2', subLabel: 'Repo/Code Scan', icon: GitBranch, glow: '#22d3ee' },
+  { id: '20', x: 150, y: 320, type: 'glass', label: 'Agent 3', subLabel: 'Bias Check', icon: Scale, glow: '#22d3ee' },
+  { id: '21', x: 550, y: 320, type: 'glass', label: 'Agent 4', subLabel: 'IMR Validator', icon: ShieldAlert, glow: '#22d3ee' },
+  { id: '22', x: 350, y: 450, type: 'glass', label: 'Output', subLabel: 'Final Doc List', icon: FileText, glow: '#94a3b8' },
+  { id: '23', x: 350, y: 570, type: 'glass', label: 'Presentation', subLabel: 'Points for PPP', icon: Users, glow: '#94a3b8' },
+  { id: '24', x: 350, y: 690, type: 'glass', label: 'Approval', subLabel: 'Panel Approve', icon: CheckCircle2, status: 'critical', glow: '#f87171' },
+];
+
+const RULE_NODES = [
+  { id: 'r1', x: 300, y: 200, type: 'glass', label: 'Work in Progress', subLabel: 'Rule Creation Logic', icon: Wrench, glow: '#f59e0b' },
+];
+
+const SUMMARY_NODES = [
+  { id: 'sum-1', x: 1100, y: 270, type: 'summary', title: 'GenAI & ML Ops Loop', subtitle: 'Model Improvement', icon: BrainCircuit, targetTab: 'genai', color: '#a78bfa' },
+  { id: 'sum-2', x: 1100, y: 480, type: 'summary', title: 'Rule Creation', subtitle: 'Rules', icon: Scale, targetTab: 'rule', color: '#22d3ee' },
+  // Reduced size back to small
+  { id: 'drill-gov', x: 1450, y: 290, type: 'summary', title: 'Model Gov', subtitle: 'Compliance', icon: Scale, targetTab: 'sol2', color: '#22d3ee', isSmall: true },
+];
+
+// --- EDGE DEFINITIONS ---
+
+const RT_EDGES = [
+  { id: 'e1', source: '1', target: '2', color: '#94a3b8' },
+  { id: 'e2', source: '2', target: '3', color: '#f87171', label: 'Reject', sourceHandle: 'right' },
+  { id: 'e3', source: '2', target: '4', color: '#4ade80', label: 'Accept', sourceHandle: 'bottom' },
+  { id: 'e4', source: '4', target: '5', color: '#60a5fa' },
+  { id: 'e5', source: '5', target: '6', color: '#60a5fa' },
+  { id: 'e6', source: '6', target: '8', color: '#a78bfa', label: 'LLM Call' }, 
+];
+
+const OVERVIEW_CONNECTING_EDGES = [
+  { id: 'e-sum1', source: '8', target: 'sum-1', color: '#60a5fa', type: 'dashed', label: 'Model Path' },
+  { id: 'e-sum2', source: '8', target: 'sum-2', color: '#22d3ee', type: 'dashed', label: 'Rule Path' },
+  
+  // Removed label "Trigger Gov"
+  { id: 'e-gen-gov', source: 'sum-1', target: 'drill-gov', color: '#22d3ee' },
+  { id: 'e-gov-prod', source: 'drill-gov', target: 'prod-deploy', color: '#4ade80', label: 'Approved' },
+  
+  { id: 'e-loop1', source: 'prod-deploy', target: '2', color: '#4ade80', type: 'dashed', label: 'Update Engine' }, 
+  // Removed label "New Rules"
+  { id: 'e-loop2', source: 'sum-2', target: '2', color: '#22d3ee', type: 'dashed' }, 
+];
+
+const GENAI_EDGES = [
+  { id: 'es2', source: '11', target: '12', color: '#60a5fa' },
+  { id: 'es3', source: '12', target: '13', color: '#60a5fa' },
+  { id: 'es4', source: '13', target: '14', color: '#60a5fa' },
+  { id: 'es5', source: '14', target: '15', color: '#60a5fa' },
+  { id: 'es6', source: '15', target: '16', color: '#4ade80', label: 'Better', sourceHandle: 'right' },
+  { id: 'es7', source: '15', target: '14', color: '#f87171', label: 'Retrain', type: 'dashed', sourceHandle: 'top' }, 
+  { id: 'es-drill', source: '16', target: 'drill-gov', color: '#22d3ee' },
+];
+
+const SOL2_EDGES = [
+  { id: 'es8', source: '17', target: '18', color: '#22d3ee' },
+  { id: 'es9', source: '17', target: '19', color: '#22d3ee' },
+  { id: 'es10', source: '17', target: '20', color: '#22d3ee' },
+  { id: 'es11', source: '17', target: '21', color: '#22d3ee' },
+  { id: 'es12', source: '18', target: '22', color: '#94a3b8' },
+  { id: 'es13', source: '19', target: '22', color: '#94a3b8' },
+  { id: 'es14', source: '20', target: '22', color: '#94a3b8' },
+  { id: 'es15', source: '21', target: '22', color: '#94a3b8' },
+  { id: 'es16', source: '22', target: '23', color: '#cbd5e1' },
+  { id: 'es17', source: '23', target: '24', color: '#cbd5e1' },
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('overview'); 
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
+  
+  const [mode, setMode] = useState('view');
+  const [scale, setScale] = useState(0.8);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTargetId, setDragTargetId] = useState(null);
+  const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+  
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    // Slightly shifted view to accommodate compacted layout
+    setPan({ x: 100, y: 50 }); 
+    if (activeTab === 'overview') {
+      setNodes([...RT_NODES, ...SUMMARY_NODES]);
+      setEdges([...RT_EDGES, ...OVERVIEW_CONNECTING_EDGES]);
+    } else if (activeTab === 'genai') {
+      setNodes(GENAI_NODES);
+      setEdges(GENAI_EDGES);
+    } else if (activeTab === 'sol2') {
+      setNodes(SOL2_NODES);
+      setEdges(SOL2_EDGES);
+    } else if (activeTab === 'rule') {
+      setNodes(RULE_NODES);
+      setEdges([]);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const id = 'poppins-font';
+    if (!document.getElementById(id)) {
+      const link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap';
+      document.head.appendChild(link);
+    }
+  }, []);
+
+  const handleStart = (clientX, clientY, targetId = null) => {
+    const isNodeDrag = mode === 'edit' && targetId;
+    setIsDragging(true);
+    setDragTargetId(isNodeDrag ? targetId : null);
+    setLastPos({ x: clientX, y: clientY });
+  };
+
+  const handleMove = (clientX, clientY) => {
+    if (!isDragging) return;
+    const deltaX = (clientX - lastPos.x);
+    const deltaY = (clientY - lastPos.y);
+
+    if (dragTargetId) {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === dragTargetId
+            ? { ...n, x: n.x + deltaX / scale, y: n.y + deltaY / scale }
+            : n
+        )
+      );
+    } else {
+      setPan((prev) => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+    }
+    setLastPos({ x: clientX, y: clientY });
+  };
+
+  const handleEnd = () => {
+    setIsDragging(false);
+    setDragTargetId(null);
+  };
+
+  const onMouseDown = (e, id = null) => {
+    if (e.button !== 0) return;
+    if (id && mode === 'edit') e.stopPropagation();
+    handleStart(e.clientX, e.clientY, id);
+  };
+  const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+  const onTouchStart = (e, id = null) => {
+    if (id && mode === 'edit') e.stopPropagation();
+    const touch = e.touches[0];
+    handleStart(touch.clientX, touch.clientY, id);
+  };
+  const onTouchMove = (e) => {
+    if (e.touches.length !== 1 || !isDragging) return;
+    const touch = e.touches[0];
+    handleMove(touch.clientX, touch.clientY);
+  };
+
+  const renderEdges = () => {
+    const OFF = 5000;
+    return edges.map((edge) => {
+      const startNode = nodes.find(n => n.id === edge.source);
+      const endNode = nodes.find(n => n.id === edge.target);
+      if (!startNode || !endNode) return null;
+
+      const isDecision = (n) => n.type === 'decision';
+      const isSummary = (n) => n.type === 'summary';
+      const isSmallSummary = (n) => n.type === 'summary' && n.isSmall;
+      
+      const getW = (n) => isDecision(n) ? 100 : (isSmallSummary(n) ? 180 : (isSummary(n) ? 300 : 220));
+      const getH = (n) => isDecision(n) ? 100 : (isSmallSummary(n) ? 80 : (isSummary(n) ? 120 : 80));
+
+      let sx = startNode.x + getW(startNode)/2;
+      let sy = startNode.y + getH(startNode); 
+      let ex = endNode.x + getW(endNode)/2;
+      let ey = endNode.y; 
+
+      if (edge.sourceHandle === 'right') {
+        sx = startNode.x + getW(startNode);
+        sy = startNode.y + getH(startNode)/2;
+        ex = endNode.x;
+        ey = endNode.y + 20;
+      }
+      if (edge.sourceHandle === 'bottom') {
+         sy = startNode.y + getH(startNode);
+      }
+      if (edge.sourceHandle === 'top') { 
+         sy = startNode.y;
+      }
+      if (edge.target.startsWith('sum-') || edge.target === 'prod-deploy' || edge.target === 'drill-gov') {
+          ey = endNode.y + getH(endNode)/2; 
+          ex = endNode.x;
+      }
+      if (edge.source.startsWith('sum-') || edge.source === 'prod-deploy' || edge.source === 'drill-gov') {
+          sx = startNode.x + getW(startNode);
+          sy = startNode.y + getH(startNode)/2;
+      }
+
+      // Loops
+      if (edge.id === 'e-loop1') {
+         const loopH = -150; 
+         const d = `M ${OFF+sx} ${OFF+sy} C ${OFF+sx+200} ${OFF+sy}, ${OFF+ex} ${OFF+ey+loopH}, ${OFF+ex} ${OFF+ey}`;
+         const markerId = `arrow-${edge.color.replace('#', '')}`;
+         return (
+          <g key={edge.id}>
+            <path d={d} fill="none" stroke={edge.color} strokeWidth="2" markerEnd={`url(#${markerId})`} strokeDasharray="6,6" />
+            <circle r="3" fill={edge.color}>
+              <animateMotion dur="6s" repeatCount="indefinite" path={d} />
+            </circle>
+            <text x={OFF+(sx+ex)/2 + 50} y={OFF+sy+loopH/2} fill={edge.color} fontSize="12" fontWeight="bold" textAnchor="middle" className="bg-slate-950 px-1 py-0.5 rounded-md backdrop-blur-sm">{edge.label}</text>
+            <marker id={markerId} markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill={edge.color} /></marker>
+          </g>
+         );
+      }
+      if (edge.id === 'e-loop2') {
+         const d = `M ${OFF+sx} ${OFF+sy} C ${OFF+sx} ${OFF+sy+200}, ${OFF+ex} ${OFF+sy+250}, ${OFF+ex} ${OFF+ey}`;
+         const markerId = `arrow-${edge.color.replace('#', '')}`;
+         return (
+          <g key={edge.id}>
+            <path d={d} fill="none" stroke={edge.color} strokeWidth="2" markerEnd={`url(#${markerId})`} strokeDasharray="6,6" />
+            <circle r="3" fill={edge.color}>
+              <animateMotion dur="8s" repeatCount="indefinite" path={d} />
+            </circle>
+            {edge.label && (
+              <text x={OFF+(sx+ex)/2 - 50} y={OFF+sy+220} 
+                    fill={edge.color} fontSize="12" fontWeight="bold" textAnchor="middle" className="bg-slate-950 px-1 py-0.5 rounded-md backdrop-blur-sm">{edge.label}</text>
+            )}
+            <marker id={markerId} markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill={edge.color} /></marker>
+          </g>
+         );
+      }
+
+      const controlX = Math.abs(ex - sx) * 0.5;
+      const d = `M ${OFF+sx} ${OFF+sy} C ${OFF+sx + controlX} ${OFF+sy}, ${OFF+ex - controlX} ${OFF+ey}, ${OFF+ex} ${OFF+ey}`;
+      
+      const markerId = `arrow-${edge.color.replace('#', '')}`;
+      return (
+        <g key={edge.id}>
+          <path d={d} fill="none" stroke={edge.color} strokeWidth="2" markerEnd={`url(#${markerId})`} strokeDasharray={edge.type === 'dashed' ? "6,6" : ""} />
+          {edge.type !== 'dashed' && (
+            <circle r="3" fill={edge.color}>
+              <animateMotion dur="3s" repeatCount="indefinite" path={d} />
+            </circle>
+          )}
+           {edge.label && (
+            <text x={OFF+(sx + ex) / 2} y={OFF+(sy + ey) / 2 - 10} fill={edge.color} fontSize="12" fontWeight="bold" textAnchor="middle" style={{fill: edge.color}} className="bg-slate-950 px-1 py-0.5 rounded-md backdrop-blur-sm shadow-md border border-slate-800/50">
+              {edge.label}
+            </text>
+          )}
+          <marker id={markerId} markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill={edge.color} /></marker>
+        </g>
+      );
+    });
+  };
+
+  return (
+    <div 
+      className="relative w-full h-screen overflow-hidden touch-none"
+      ref={containerRef}
+      onMouseDown={(e) => onMouseDown(e, null)}
+      onMouseMove={onMouseMove}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+      onTouchStart={(e) => onTouchStart(e, null)}
+      onTouchMove={onTouchMove}
+      onTouchEnd={handleEnd}
+      style={{ backgroundColor: '#0F1724', color: '#F8FAFC', fontFamily: "'Poppins', sans-serif" }}
+    >
+      <style>{`
+        .node-card { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .node-card:hover { transform: scale(1.05) translateY(-5px); box-shadow: 0 10px 40px var(--glow-color, rgba(96, 165, 250, 0.5)); border-color: var(--glow-color, rgba(96, 165, 250, 0.8)) !important; z-index: 50; }
+        .summary-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .summary-card:hover { transform: scale(1.02); box-shadow: 0 0 40px var(--glow-color); border-color: var(--glow-color); }
+      `}</style>
+
+      <div className="absolute inset-0 pointer-events-none opacity-20" 
+        style={{ 
+          backgroundImage: 'radial-gradient(#1b2430 1px, transparent 1px)', 
+          backgroundSize: '30px 30px',
+          backgroundPosition: `${pan.x}px ${pan.y}px`,
+          transform: `scale(${scale})`,
+          transformOrigin: '0 0',
+        }}>
+      </div>
+
+      <div className="fixed top-0 left-0 z-50 w-full pointer-events-none">
+        <div className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-4 shadow-xl">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 pointer-events-auto">
+            <div>
+              <h1 className="text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-500">
+                SentineL - AI
+              </h1>
+            </div>
+            <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
+              <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                <LayoutDashboard size={16} /> Overview
+              </button>
+              <div className="w-px bg-slate-800 my-2 mx-1"></div>
+              <button onClick={() => setActiveTab('genai')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'genai' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-slate-500 hover:text-purple-400'}`}>
+                <BrainCircuit size={16} /> GenAI & MLOps
+              </button>
+              <button onClick={() => setActiveTab('sol2')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'sol2' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-500 hover:text-cyan-400'}`}>
+                <Bot size={16} /> Model Governance
+              </button>
+               <button onClick={() => setActiveTab('rule')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'rule' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-500 hover:text-amber-400'}`}>
+                <Scale size={16} /> Rule Creation
+              </button>
+            </div>
+            <div className="flex bg-slate-950 rounded-lg p-1 border border-slate-800">
+              <button onClick={() => setMode('view')} className={`p-2 rounded ${mode === 'view' ? 'bg-slate-800 text-amber-400' : 'text-slate-600'}`} title="View Mode"><Hand size={18} /></button>
+              <button onClick={() => setMode('edit')} className={`p-2 rounded ${mode === 'edit' ? 'bg-slate-800 text-amber-400' : 'text-slate-600'}`} title="Edit Mode"><MousePointer2 size={18} /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: '0 0' }} className="absolute top-0 left-0 w-full h-full origin-top-left will-change-transform">
+        <svg className="absolute -top-[5000px] -left-[5000px] w-[10000px] h-[10000px] pointer-events-none overflow-visible z-0">
+          {renderEdges()}
+        </svg>
+
+        {nodes.map((node) => {
+          if (node.type === 'summary') {
+            return (
+              <div
+                key={node.id}
+                onClick={(e) => { e.stopPropagation(); setActiveTab(node.targetTab); }}
+                onMouseDown={(e) => onMouseDown(e, node.id)}
+                onTouchStart={(e) => onTouchStart(e, node.id)}
+                style={{ left: node.x, top: node.y, width: node.isSmall ? 180 : 300, '--glow-color': node.color }}
+                className={`absolute z-30 summary-card group`}
+              >
+                <div className={`bg-slate-900/90 border-2 border-slate-700 rounded-2xl flex flex-col gap-4 backdrop-blur-xl relative overflow-hidden ${node.isSmall ? 'p-4' : 'p-6'}`}>
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-full opacity-50"></div>
+                   <div className="flex items-center gap-4">
+                     <div className={`rounded-xl ${node.isSmall ? 'p-2' : 'p-3'}`} style={{ backgroundColor: `${node.color}20`, color: node.color }}>
+                       <node.icon size={node.isSmall ? 24 : 32} />
+                     </div>
+                     <div>
+                       <h3 className={`text-sm font-bold uppercase tracking-wider text-slate-400 ${node.isSmall ? 'text-[10px]' : 'text-sm'}`}>Drill Down</h3>
+                       <h2 className={`font-bold text-white leading-tight ${node.isSmall ? 'text-sm' : 'text-xl'}`}>{node.title}</h2>
+                     </div>
+                   </div>
+                   {!node.isSmall && (
+                     <>
+                       <div className="h-px bg-slate-700 w-full"></div>
+                       <div className="flex justify-between items-center">
+                          <p className="text-slate-300 text-sm font-medium">{node.subtitle}</p>
+                          <div className="bg-slate-800 p-1.5 rounded-full group-hover:bg-slate-700 transition-colors">
+                            <ArrowRight size={16} className="text-slate-400 group-hover:text-white" />
+                          </div>
+                       </div>
+                     </>
+                   )}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div
+              key={node.id}
+              onMouseDown={(e) => onMouseDown(e, node.id)}
+              onTouchStart={(e) => onTouchStart(e, node.id)}
+              style={{ left: node.x, top: node.y, width: node.type === 'decision' ? 100 : 220, '--glow-color': node.glow || '#60a5fa' }}
+              className={`absolute z-20 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            >
+               {node.type === 'glass' && (
+                <div className={`node-card relative flex items-center gap-4 p-4 rounded-xl border backdrop-blur-xl shadow-2xl select-none`}
+                  style={{
+                    borderColor: node.status === 'critical' ? 'rgba(239,108,108,0.5)' : node.status === 'active' ? 'rgba(74,222,128,0.5)' : 'rgba(148,163,184,0.3)',
+                    background: 'linear-gradient(145deg, rgba(30,41,59,0.95), rgba(15,23,36,0.98))'
+                  }}
+                >
+                  <div className={`p-2.5 rounded-lg ${node.color || 'bg-[#0b1220] text-[#9AA4B3]'}`}
+                       style={{ background: node.color ? undefined : '#0b1220', color: node.color ? undefined : '#9AA4B3' }}>
+                    {node.icon && <node.icon size={20} />}
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest mb-0.5 text-slate-400">{node.label}</div>
+                    <div className="text-sm font-medium leading-tight text-slate-100">{node.subLabel}</div>
+                  </div>
+                </div>
+              )}
+              {node.type === 'decision' && (
+                <div className="relative w-24 h-24 mx-auto select-none">
+                  <div className={`node-card absolute inset-0 rotate-45 rounded-xl border-2 backdrop-blur-md shadow-lg flex items-center justify-center`}
+                    style={{ background: '#0F1724', borderColor: 'rgba(246,200,95,0.5)' }}
+                  >
+                    <div className="-rotate-45 text-center">
+                      {node.icon && <node.icon className="w-6 h-6 mx-auto mb-1 text-amber-400" />}
+                      <div className="text-[9px] font-bold leading-none text-amber-400">{node.label.toUpperCase()}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 bg-slate-900/90 backdrop-blur rounded-xl p-2 border border-slate-700 shadow-2xl">
+        <button onClick={() => setScale(s => Math.min(s + 0.1, 2))} className="p-3 hover:bg-slate-800 rounded-lg text-amber-400"><Plus size={24} /></button>
+        <button onClick={() => setScale(s => Math.max(s - 0.1, 0.2))} className="p-3 hover:bg-slate-800 rounded-lg text-amber-400"><Minus size={24} /></button>
+        <button onClick={() => { setScale(0.8); setPan({x:50, y:50}); }} className="p-3 hover:bg-slate-800 rounded-lg text-amber-400"><Maximize size={24} /></button>
+      </div>
+    </div>
+  );
+}
